@@ -1,0 +1,136 @@
+<!--
+	About         Ant build script for Paul, Andrew, and Sam's Amazons AI
+	Last Modified 2011-03-22
+	Author        Paul Moore
+-->
+
+<project name="COSC322 Amazons AI" default="build" basedir=".">
+	
+	<!-- Property file -->
+	<property file="build.properties"/>
+	
+	<!-- Define the classpath -->
+	<path id="classpath">
+		<fileset dir="${lib}" includes="**/*.jar"/>
+	</path>
+	
+	<target name="clean" description="delete old build">
+		<!-- Delete the build directory -->
+		<delete includeemptydirs="true" quiet="true">
+			<fileset dir="${build}" defaultexcludes="false"/>
+		</delete>
+	</target>
+	
+	<!-- make neccessary build directories -->
+	<target name="-init" depends="clean">
+  		<tstamp>
+  			<format property="TODAY_US" pattern="yyyy-mm-dd-hhhh-ss" locale="en,US"/>
+		</tstamp>
+  		<mkdir dir="${build}"/>
+  		<mkdir dir="${classes}"/>
+		<mkdir dir="${jar}"/>
+		<mkdir dir="${deploy}"/>
+		<mkdir dir="${deploy-lib}"/>
+		<mkdir dir="${deploy-resource}"/>
+		<mkdir dir="${test-results}"/>
+		<mkdir dir="${javadocs}"/>
+  	</target>
+	
+	<!-- compile the source -->
+  	<target name="-compile" depends="-init">
+    	<javac srcdir="${src}" destdir="${classes}" classpathref="classpath" debug="on" debuglevel="lines,vars,source" includeantruntime="false"/>
+  	</target>
+	
+	<target name="generate-docs" depends="-compile" description="generate the javadocs">
+	<javadoc sourcepath="${src}"
+			 destdir="${javadocs}"
+			 doctitle="Paul/Andrew/Sam Amazon's AI API Documentation"/>
+	</target>
+	
+	<!-- create the manifest file for the jar to use -->
+	<target name="-create-manifest">
+  		<manifest file="${jar}/MANIFEST.MF">
+  			<attribute name="Built-By" value="${user.name}"/>
+  			<attribute name="Project-Author" value="${project.author}"/>
+  			<attribute name="Main-Class" value="${project.mainclass}"/>
+  			<attribute name="Class-Path" value="${project.deploy.classpath}"/>
+  			<section name="common">
+  		    	<attribute name="Specification-Title" value="${project.title}"/>
+  		    	<attribute name="Specification-Version" value="${project.version} ${TODAY}"/>
+  		    	<attribute name="Specification-Vendor" value="${project.author}"/>
+  		    	</section>
+  		    <section name="com/">
+  		    	<attribute name="Sealed" value="true"/>
+  		    </section>
+  		</manifest>
+	</target>
+	
+	<!-- generate the jar file -->
+  	<target name="-create-jar" depends="-compile,-create-manifest">
+    	<jar destfile="${jar}/${jar-name}"
+  			 basedir="${classes}"
+  			 excludes="**/Test.class"
+    		 manifest="${jar}/MANIFEST.MF">
+    	</jar>
+  		<delete file="${jar}/MANIFEST.MF"/>
+  	</target>
+	
+	<!-- deploy the build -->
+	<target name="-deploy" depends="-create-jar">
+		<copy file="${jar}/${jar-name}" todir="${deploy}"/>
+		<copy todir="${deploy-lib}">
+			<fileset dir="${lib}"/>
+		</copy>
+		<copy todir="${deploy-resource}">
+			<fileset dir="${resource}"/>
+		</copy>
+	</target>
+	
+	<target name="compress-build" description="create a zip file containing the build">
+		<zip destfile="${build}/deploy/${project.name}.zip" basedir="${deploy}"/>
+	</target>
+	
+	<!-- compile the test source -->
+	<target name="-compile-tests">
+		<javac srcdir="${test-src}" destdir="${classes}" classpathref="classpath" debug="on" debuglevel="lines,vars,source" includeantruntime="false"/>
+	</target>
+	
+	<target name="run-tests" depends="-compile,-compile-tests" description="run the junit test cases">
+		<junit printsummary="yes" haltonfailure="no" fork="yes" showoutput="true" timeout="120000"><!--2 minute timeout-->
+			<classpath>
+				<path refid="classpath"/>
+				<pathelement location="${classes}"/>
+			</classpath>
+	  		<formatter type="xml"/>
+	 		<batchtest fork="yes" todir="${test-results}">
+	    		<fileset dir="${test-src}">
+	      			<include name="**/*Test.java"/>
+	  	  		</fileset>
+	  		</batchtest>
+		</junit>
+	</target>
+	
+	<target name="build" description="build the project">
+		<record name="build.log" loglevel="verbose" append="false" action="start"/>
+		<antcall target="-deploy"/>
+		<record name="build.log" action="stop"/>
+		<move file="build.log" todir="${build}"/>
+	</target>
+	
+	<target name="run" description="run the AI">
+		<java jar="${deploy}/${jar-name}" maxmemory="${max-memory}" fork="true" spawn="false">
+			<arg value="${user-name}"/>
+			<arg value="${user-pass}"/>
+			<arg value="${server-room}"/>
+			<arg value="${min-memory}"/>
+			<arg value="${search-time}"/>
+			<arg value="${max-explorations}"/>
+			<arg value="${initial-depth}"/>
+			<arg value="${end-game-turnover}"/>
+			<arg value="${max-threads}"/>
+			<arg value="${debug-level}"/>
+			<arg value="${manual-input}"/>
+		</java>
+	</target>
+	
+</project>
